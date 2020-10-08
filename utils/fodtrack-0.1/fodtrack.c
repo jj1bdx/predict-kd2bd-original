@@ -2,7 +2,8 @@
  * fodtrack.c - fodtrack 'driver' for predict
  */
 
-#define __USE_GNU
+/* #define __USE_GNU */
+#define _GNU_SOURCE
 
 #include <string.h>
 #include <sys/types.h>

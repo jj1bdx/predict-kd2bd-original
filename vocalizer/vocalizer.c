@@ -1,11 +1,13 @@
 /****************************************************************************
 *                  VOCALIZER: A speech articulation program                 *
-*		Copyright John A. Magliacane, KD2BD 1999-2003               *
-*	   		  Last update: 21-Oct-2015                          *
+*		 Copyright John A. Magliacane, KD2BD 1999-2020              *
+*  		     Modified on 05-Apr-2020 to use ALSA.                   *
+*	   		  Last update: 17-May-2020                          *
 *****************************************************************************
 * This program is used by PREDICT to annunciate satellite coordinates       *
-* through the system's soundcard (/dev/dsp) using .wav files containing     *
-* uncompressed "raw" PCM data.  It is called as a background process.       *
+* using the Advanced Linux Sound Architecture (ALSA).  .wav audio files     *
+* containing uncompressed "raw" PCM data are read during PREDICT execution  *
+* as a background process.                                                  *
 *****************************************************************************
 *                                                                           *
 * This program is free software; you can redistribute it and/or modify it   *
@@ -20,21 +22,18 @@
 *                                                                           *
 *****************************************************************************/
 
+#define ALSA_PCM_NEW_HW_PARAMS_API
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/soundcard.h>
+#include <alsa/asoundlib.h>
 #include "vocalizer.h"
 
-int dsp;
 char numstr[20][10];
 unsigned char buffer[65536];
 
-unsigned long buffer2long(indx)
-int indx;
+unsigned long buffer2long(int indx)
 {
 	unsigned long byte0, byte1, byte2, byte3;
 
@@ -51,8 +50,7 @@ int indx;
 		return 0L;
 }
 
-unsigned int buffer2int(indx)
-int indx;
+unsigned int buffer2int(int indx)
 {
 	unsigned int byte0, byte1;
 
@@ -67,16 +65,18 @@ int indx;
 		return 0;
 }
 
-int wavplay(filename)
-char *filename;
+int wavplay(char *filename)
 {
-	int x, y, format, bits, bytes, channels, dsp, fd;
-	unsigned long total_samples=0L, rate=0L, running_total=0L;
-	char filenpath[80];
+	int x, y, format, bytes, channels, rc, fd;
+	unsigned long total_samples=0L, running_total=0L;
+	unsigned int rate=0;
+	char filenpath[255];
+	snd_pcm_t *handle;
+	snd_pcm_hw_params_t *params;
 
-	strncpy(filenpath,path,79);
-	strncat(filenpath,filename,79);
-	strncat(filenpath,".wav",79);
+	strncpy(filenpath,path,254);
+	strncat(filenpath,filename,254);
+	strncat(filenpath,".wav",254);
 
 	fd=open(filenpath,O_RDONLY);
 
@@ -117,7 +117,7 @@ char *filename;
 		/* int block_size=buffer2int(x); */
 		buffer2int(x);
 		x+=2;
-		bits=buffer2int(x);
+		buffer2int(x);  /* bits = */
 		x+=2;
 
 		if (format!=1)
@@ -137,17 +137,41 @@ char *filename;
 
 			if (total_samples!=0L)
 			{
-				dsp=open("/dev/dsp",O_RDWR);
 
-				if (dsp==-1)
-				{
-					fprintf(stderr,"*** vocalizer: Cannot open /dev/dsp!\n");
-					return -1;
-				}
+				/* Open PCM device for playback. */
+				rc=snd_pcm_open(&handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
 
-				ioctl(dsp,SOUND_PCM_WRITE_CHANNELS,&channels);
-				ioctl(dsp,SOUND_PCM_WRITE_RATE,&rate);
-				ioctl(dsp,SOUND_PCM_WRITE_BITS,&bits);
+				/* Allocate a hardware parameters object. */
+				snd_pcm_hw_params_alloca(&params);
+
+				/* Fill it in with default values. */
+				snd_pcm_hw_params_any(handle, params);
+
+				/* Set the desired hardware parameters. */
+
+				/* Interleaved mode */
+				snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
+
+				/* Signed 16-bit little-endian format */
+				snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE);
+
+				/* Set the number of audio channels */
+				snd_pcm_hw_params_set_channels(handle, params, channels);
+
+				/* Set the sampling rate (in Hz) */
+				snd_pcm_hw_params_set_rate_near(handle, params, &rate, 0);
+
+				/* Set the buffer size */
+				snd_pcm_hw_params_set_buffer_size(handle, params, 65536);
+
+				/* Write the parameters to the driver */
+				rc=snd_pcm_hw_params(handle, params);
+
+				if (rc<0)
+			        {
+       				    	fprintf(stderr, "unable to set hw parameters: %s\n", snd_strerror(rc));
+               				exit(1);
+       				}
 
 				lseek(fd,(long)(x+4),SEEK_SET);
 				bytes=read(fd,&buffer,65536);
@@ -158,7 +182,8 @@ char *filename;
 
 				while (bytes>0)
 				{
-					write(dsp,&buffer,bytes);
+					/* write(dsp,&buffer,bytes); */
+					rc=snd_pcm_writei(handle, buffer, ((bytes/2)/channels));
 
 					bytes=read(fd,&buffer,65536);
 					running_total+=bytes;
@@ -167,7 +192,9 @@ char *filename;
 						bytes-=(running_total-total_samples);
 				}
 
-				close(dsp);
+				/* close(dsp); */
+				snd_pcm_drain(handle);
+				snd_pcm_close(handle);
 				close(fd);
 			}
 		}
@@ -180,8 +207,7 @@ char *filename;
 	return 0;
 }
 
-void saynumber(num)
-int num;
+void saynumber(int num)
 {
 	char string[10];
 
@@ -189,14 +215,14 @@ int num;
 
 	if (string[1]!=32)
 	{
-		wavplay(numstr[string[1]-48]);
+		wavplay(numstr[string[1]-'0']);
 		wavplay("hundred");
 	}
 
 	switch (string[2])
 	{
 		case '1':
-			wavplay(numstr[(10+(string[3]-48))]);
+			wavplay(numstr[(10+(string[3]-'0'))]);
 			break;
 
 		case '2':	
@@ -233,15 +259,13 @@ int num;
 	}
 
 	if (string[3]!=32 && string[3]!=0 && string[2]!='1' && string[3]!='0')
-		wavplay(numstr[string[3]-48]);
+		wavplay(numstr[string[3]-'0']);
 
 	if (string[3]=='0' && string[2]==32 && string[1]==32)
 		wavplay("zero"); 
 }
 
-int main(argc,argv)
-int argc;
-char *argv[];
+int main(int argc, char *argv[])
 {
 	int number;
 
