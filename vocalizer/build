@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Script for compiling vocalizer.c
 #
 if [ -e vocalizer.h ]; then

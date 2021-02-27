@@ -8,13 +8,10 @@ This program requires ncurses version 4.2 or higher.  Earlier versions have
 been known to cause segmentation faults and/or odd display colors with this
 program.  ncurses may be obtained via anonymous FTP at:
 
-	prep.ai.mit.edu
-
-in the pub/gnu/ncurses subdirectory
+	ftp://ftp.invisible-island.net/ncurses/
 
 or:
-	http://www.gnu.org/software/ncurses/ncurses.html
-
+	https://invisible-mirror.net/archives/ncurses/
 
 The Linux pthreads library is also required.  Both of these libraries are
 usually available in modern Linux distributions.
@@ -27,7 +24,7 @@ is provided for all system users (such as /usr/src or /usr/local/src for
 Slackware Linux).  As root, move the tar file to such a directory and
 issue the command:
 
-	tar xvfz predict-2.2.6.tar.gz
+	tar xvfz predict-2.2.7.tar.gz
 
 to unpack the file.
 
@@ -80,5 +77,5 @@ Happy Tracking!
 --
 John, KD2BD
 kd2bd@amsat.org
-May 2020
+October 2020
 

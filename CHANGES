@@ -1,3 +1,31 @@
+Release 2.2.7:
+By John A. Magliacane <kd2bd@amsat.org> (12-Oct-2020):
+
+* Fixed the vocalizer build script to use bash rather than
+  the default system shell (which could be something else entirely).
+
+* Vocalizer now uses improved (faster and royality-free) speech
+  samples generated through https://ttsmp3.com/
+
+* Improved the keyboard handling to permit cursor and function
+  keys to be depressed without causing undesired program behavior.
+
+* Modified the degree symbol displayed after the Eclipse Depth angle
+  in Single Tracking Mode for better consistancy across a wider range
+  of terminals.
+
+* Since ISS visibility doesn't require a very dark sky, the sun angle
+  visibility threshold for the ISS was lowered from -12.0 degrees
+  (Nautical Twilight) to -8.0 degrees (between Nautical and Civil
+  Twilight).
+
+* Several additional display changes were made for improved operation
+  under Android platforms.
+
+* The kepupdate script is now installed by default.
+
+----------------------------------------------------------------------------
+
 Release 2.2.6:
 By John A. Magliacane <kd2bd@amsat.org> (20-May-2020):
 
@@ -21,7 +49,6 @@ By John A. Magliacane <kd2bd@amsat.org> (20-May-2020):
 * The documentation and the transponder database file have been
   updated, and the format of the man page has been corrected.
 
-
 ----------------------------------------------------------------------------
 
 Release 2.2.5:
@@ -37,6 +64,7 @@ By John A. Magliacane <kd2bd@amsat.org> (05-May-2018):
   (Thanks Joeal Subash)
 
 * Updated the documentation to reflect the changes. 
+
 ----------------------------------------------------------------------------
 
 Release 2.2.4:
@@ -50,6 +78,7 @@ By John A. Magliacane <kd2bd@amsat.org> (12-Mar-2018):
   by default.
 
 * Added <errno.h> header to gsat-1.1.0/src/callbacks.c
+
 ----------------------------------------------------------------------------
 
 Release 2.2.3:

@@ -7,7 +7,7 @@
 #                ie: ./configure /usr/bin                   #
 #############################################################
 #    Written by John A. Magliacane, KD2BD on 12-Apr-2020    #
-#                Last updated on 17-May-2020                #
+#                Last updated on 08-Oct-2020                #
 #############################################################
 
 version=$(cat .version)
@@ -50,7 +50,7 @@ else
 
 			cc gcctest.c -lncurses -o gcctest
 
-			if [ -a gcctest ]; then
+			if [ -x gcctest ]; then
 
 				rm -f gcctest
 			else
@@ -85,7 +85,7 @@ echo -e "                  \e[41m                                           \e[4
 echo -e "                  \e[41m         --== PREDICT  v$version ==--         \e[44m"
 
 echo -e "                  \e[41m   Released by John A. Magliacane, KD2BD   \e[44m"
-echo -e "                  \e[41m                 May 2020                  \e[44m"
+echo -e "                  \e[41m                October 2020               \e[44m"
 
 echo -e "                  \e[41m                                           \e[44m"
 
@@ -163,48 +163,49 @@ echo
 echo "Linking PREDICT binaries to "$bindestination":"
 
 lncmd=`pwd`"/predict $bindestination/predict"
-
-rm -f $bindestination/predict
-ln -s $lncmd
+ln -sf $lncmd
 
 if [ -L $bindestination/predict ]; then
 	echo "predict... Done!"
 else
-	echo "Oops! 'ln -s $lncmd':  Didn't work!  :-("
+	echo "Oops! 'ln -sf $lncmd':  Didn't work!  :-("
 fi
 
 lncmd=`pwd`"/xpredict $bindestination/xpredict"
-
-rm -f $bindestination/xpredict
-ln -s $lncmd
+ln -sf $lncmd
 
 if [ -L $bindestination/xpredict ]; then
 	echo "xpredict... Done!"
 else
-	echo "Oops! 'ln -s $lncmd':  Didn't work!  :-("
+	echo "Oops! 'ln -sf $lncmd':  Didn't work!  :-("
+fi
+
+# Install kepupdate
+if [ -x kepupdate ]; then
+	ln -sf `pwd`/kepupdate $bindestination/kepupdate
+	echo
+	echo "kepupdate installed!"
 fi
 
 # Install earthtrack and earthtrack2
-
-rm -f $bindestination/earthtrack
 echo
 echo "Linking earthtrack and earthtrack2 to "$bindestination":"
 lncmd=`pwd`"/clients/earthtrack/earthtrack $bindestination/earthtrack"
-ln -s $lncmd
+ln -sf $lncmd
 
 if [ -L $bindestination/earthtrack ]; then
 	echo "earthtrack... Done!"
 else
-	echo "Oops! 'ln -s $lncmd':  Didn't work!  :-("
+	echo "Oops! 'ln -sf $lncmd':  Didn't work!  :-("
 fi
 
 lncmd=`pwd`"/clients/earthtrack/earthtrack $bindestination/earthtrack2"
-ln -s $lncmd
+ln -sf $lncmd
 
 if [ -L $bindestination/earthtrack2 ]; then
 	echo "earthtrack2... Done!"
 else
-	echo "Oops! 'ln -s $lncmd':  Didn't work!  :-("
+	echo "Oops! 'ln -sf $lncmd':  Didn't work!  :-("
 fi
 
 # Man pages
@@ -212,14 +213,14 @@ fi
 rm -if /usr/local/man/man1/predict.1
 
 echo
-echo "Linking PREDICT's man page to /usr/local/man/man1:"
-lncmd=`pwd`"/docs/man/predict.1 /usr/local/man/man1"
-ln -s $lncmd
+echo "Installing PREDICT's man page in /usr/local/man/man1:"
+lncmd="`pwd`/docs/man/predict.1 > /usr/local/man/man1"
+gzip -c `pwd`/docs/man/predict.1 > /usr/local/man/man1/predict.1.gz 
 
-if [ -L /usr/local/man/man1/predict.1 ]; then
+if [ -e /usr/local/man/man1/predict.1.gz ]; then
 	echo "... Done!"
 else
-	echo "Oops!  'ln -s $lncmd': Didn't work!  :-("
+	echo "Oops! 'gzip -c `pwd`/docs/man/predict.1 > /usr/local/man/man1/predict.1.gz': Didn't work!  :-("
 fi
 
 echo

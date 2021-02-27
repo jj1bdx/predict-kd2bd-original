@@ -1,7 +1,7 @@
 /***************************************************************************\
 *          PREDICT: A satellite tracking/orbital prediction program         *
 *          Project started 26-May-1991 by John A. Magliacane, KD2BD         *
-*                        Last update: 18-May-2020                           *
+*                        Last update: 16-Oct-2020                           *
 *****************************************************************************
 *                                                                           *
 * This program is free software; you can redistribute it and/or modify it   *
@@ -171,10 +171,11 @@ double	tsince, jul_epoch, jul_utc, eclipse_depth=0,
 	sun_ra, sun_dec, sun_lat, sun_lon, sun_range, sun_range_rate,
 	moon_az, moon_el, moon_dx, moon_ra, moon_dec, moon_gha, moon_dv;
 
-char	qthfile[50], tlefile[50], dbfile[50], output[25], temp[255],
+char	qthfile[100], tlefile[100], dbfile[100], output[25], temp[255],
 	serial_port[15], resave=0, reload_tle=0, netport[10],
 	once_per_second=0, ephem[5], sat_sun_status, findsun,
-	calc_squint, database=0, xterm, io_lat='N', io_lon='W';
+	calc_squint, database=0, xterm, io_lat='N', io_lon='W',
+	android=0;
 
 int	indx, antfd, iaz, iel, ma256, isplat, isplong, socket_flag=0,
 	Flags=0;
@@ -2035,12 +2036,14 @@ int passivesock(char *service, char *protocol, int qlen)
 		bailout("Can't bind");
 		exit(-1);
 	}
-	
-	if ((type=SOCK_STREAM && listen(s,qlen))<0)
+
+	/**
+	if ((type=SOCK_STREAM && listen(sd,qlen))<0)
 	{
 		bailout("Listen fail");
 		exit(-1);
 	}
+	**/
 
 	return sd;
 }
@@ -2354,21 +2357,29 @@ void Banner()
 	curs_set(0);
 	bkgdset(COLOR_PAIR(3));
 	clear();
-	refresh();
+
+	attroff(COLOR_PAIR(3));
 
 	attrset(COLOR_PAIR(5)|A_BOLD);
 	mvprintw(3,18,"                                           ");
 	mvprintw(4,18,"         --== PREDICT  v%s ==--         ",version);
 	mvprintw(5,18,"   Released by John A. Magliacane, KD2BD   ");
-	mvprintw(6,18,"                  May 2020                 ");
+	mvprintw(6,18,"                October 2020               ");
 	mvprintw(7,18,"                                           ");
 }
 
 void AnyKey()
 {
+	int key;
+
 	mvprintw(23,24,"<< Press Any Key To Continue >>");
 	refresh();
-	getch();
+
+	do
+	{
+		key=getch();
+
+	} while (key>128);
 }
 
 double FixAngle(x)
@@ -3224,6 +3235,8 @@ int Select()
 	bkgdset(COLOR_PAIR(2)|A_BOLD);
 	printw("\n\n\t\t\t      Select a Satellite:\n\n");
 
+	attroff(COLOR_PAIR(2)|A_BOLD);
+
 	attrset(COLOR_PAIR(3)|A_BOLD);
 
 	for (x=0, y=8, z=16; y<16; ++x, ++y, ++z)
@@ -3240,7 +3253,13 @@ int Select()
 
 	do
 	{
-		key=toupper(getch());
+		do
+		{
+			key=getch();
+
+		} while (key>128);
+
+		key=toupper(key);
 
 		if (key==27 || key=='\n')
 			return -1;
@@ -3342,6 +3361,7 @@ char mode;
 	{
 		bkgdset(COLOR_PAIR(2)|A_BOLD);
 		clear();
+		attroff(COLOR_PAIR(2)|A_BOLD);
 
 		if (mode=='m')
 			printw("\n\n\n\t     Starting UTC Date and Time for Predictions of the Moon\n\n");
@@ -3850,12 +3870,27 @@ void Calc()
 	iel=(int)rint(sat_ele);
 	ma256=(int)rint(256.0*(phase/twopi));
 
+	/*
 	if (sat_sun_status)
 	{
 		if (sun_ele<=-12.0 && rint(sat_ele)>=0.0)
 			findsun='+';
 		else
 			findsun='*';
+	}
+	else
+		findsun=' ';
+	*/
+
+	if (sat_sun_status)
+	{
+		findsun='*';
+
+		if (rint(sat_ele)>=0.0)
+		{
+			if ((sun_ele<=-12.0) || (sun_ele<=-8.0 && sat[indx].catnum==25544))
+				findsun='+';
+		}
 	}
 	else
 		findsun=' ';
@@ -4092,6 +4127,8 @@ char *string, mode;
 		{
 			bkgdset(COLOR_PAIR(2)|A_BOLD);
 			clear();
+			attroff(COLOR_PAIR(2)|A_BOLD);
+
 			addstr(head1);
 			attrset(COLOR_PAIR(4)|A_BOLD);
 			addstr(head2);
@@ -4118,7 +4155,13 @@ char *string, mode;
 
 			while (ans==0)
 			{
-				key=toupper(getch());
+				do
+				{
+					key=getch();
+
+				} while (key>128);
+
+				key=toupper(key);
 
 				if (key=='Y' || key=='\n' || key==' ')
 				{
@@ -4314,8 +4357,16 @@ char mode;
 					/* Allow a way out if this
 					   should continue forever... */
 
-					if (getch()==27)
+					do
+					{
+						breakout=getch();
+
+					} while (breakout>128);
+
+					if (breakout==27)
 						breakout=1;
+					else
+						breakout=0;
 
 					nodelay(stdscr,FALSE);
 
@@ -4360,6 +4411,7 @@ char mode;
 	{
 		bkgdset(COLOR_PAIR(5)|A_BOLD);
 		clear();
+		attroff(COLOR_PAIR(5)|A_BOLD);
 
 		if (AosHappens(indx)==0 || Decayed(indx,daynum)==1)
 			mvprintw(12,5,"*** Passes for %s cannot occur for your ground station! ***\n",sat[indx].name);
@@ -4580,6 +4632,8 @@ void ShowOrbitData()
 		{
 			bkgdset(COLOR_PAIR(2)|A_BOLD);
 			clear();
+			attroff(COLOR_PAIR(2)|A_BOLD);
+
 			sma=331.25*exp(log(1440.0/sat[x].meanmo)*(2.0/3.0));
 			an_period=1440.0/sat[x].meanmo;
 			c1=cos(sat[x].incl*deg2rad);
@@ -4665,6 +4719,8 @@ void KepEdit()
 		{
 			bkgdset(COLOR_PAIR(3)|A_BOLD);
 			clear();
+			attroff(COLOR_PAIR(3)|A_BOLD);
+
 			mvprintw(3,1,"\t\t   *  Orbital Database Editing Utility  *\n\n\n");
 			attrset(COLOR_PAIR(4)|A_BOLD);
 
@@ -4799,6 +4855,8 @@ void QthEdit()
 
 	bkgdset(COLOR_PAIR(3)|A_BOLD);
 	clear();
+	attroff(COLOR_PAIR(3)|A_BOLD);
+
 	curs_set(1);
 	mvprintw(7,0,"\t\t *  Ground Station Location Editing Utility  *\n\n\n");
 
@@ -4898,8 +4956,9 @@ char speak;
 	int	ans, oldaz=0, oldel=0, length, xponder=0,
 		polarity=0, tshift, bshift, spaces, namelength;
 	char	approaching=0, command[80], comsat, aos_alarm=0,
-		geostationary=0, aoshappens=0, decayed=0,
-		eclipse_alarm=0, visibility=0, old_visibility=0;
+		geostationary=0, aoshappens=0, decayed=0, alstr[80],
+		eclipse_alarm=0, visibility=0, old_visibility=0,
+		awake=0;
 	double	oldtime=0.0, nextaos=0.0, lostime=0.0, aoslos=0.0,
 		downlink=0.0, uplink=0.0, downlink_start=0.0,
 		downlink_end=0.0, uplink_start=0.0, uplink_end=0.0,
@@ -4947,53 +5006,70 @@ char speak;
 	aoshappens=AosHappens(indx);
 	geostationary=Geostationary(indx);
 	decayed=Decayed(indx,0.0);
+	alstr[0]=0;
 
 	if (xterm)
 		fprintf(stderr,"\033]0;PREDICT: Tracking %-10s\007",sat[x].name); 
+
 	halfdelay(2);
 	curs_set(0);
 	bkgdset(COLOR_PAIR(3));
 	clear();
 
-	attrset(COLOR_PAIR(5)|A_BOLD);
+	/* Keep the Android OS awake if we're providing real-time data to clients */
 
-	mvprintw(0,0,"                                                                                 ");
-	mvprintw(1,0,"                     PREDICT Real-Time Satellite Tracking                        ");
-
-	namelength=strlen(sat[x].name);
-	spaces=22-namelength;
-
-	mvprintw(2,0,"                                                                                 ");
-
-	mvprintw(2,spaces,"Tracking: %s",sat[x].name);
-
-	mvprintw(3,0,"                                                                                 ");
-
-	attrset(COLOR_PAIR(4)|A_BOLD);
-
-	mvprintw(4,0,"                                                                                 ");
-
-	mvprintw(5+tshift,1,"Satellite     Direction     Velocity     Footprint    Altitude     Slant Range");
-	mvprintw(6+tshift,1,"---------     ---------     --------     ---------    --------     -----------");
-	mvprintw(7+tshift,1,"        .            Az           mi            mi          mi              mi");
-	mvprintw(8+tshift,1,"        .            El           km            km          km              km");
-	mvprintw(16+bshift,1,"Eclipse Depth   Orbital Phase   Orbital Model   Squint Angle      AutoTracking");
-	mvprintw(17+bshift,1,"-------------   -------------   -------------   ------------      ------------");
-
-	if (comsat)
+	if (android)
 	{
-		mvprintw(12,1,"Uplink   :");
-		mvprintw(13,1,"Downlink :");
-		mvprintw(14,1,"Delay    :");
-		mvprintw(14,55,"Echo      :");
-		mvprintw(13,29,"RX:");
-		mvprintw(13,55,"Path loss :");
-		mvprintw(12,29,"TX:");
-		mvprintw(12,55,"Path loss :");
+		if ((antfd!=-1) || (speak=='T' && soundcard) || (socket_flag))
+		{
+			system("/data/data/com.termux/files/usr/bin/termux-wake-lock");
+			awake=1;
+		}
 	}
+
+	/* Start displaying headings and information */
 
 	do
 	{
+		attroff(COLOR_PAIR(3));
+
+		attrset(COLOR_PAIR(5)|A_BOLD);
+
+		mvprintw(0,0,"                                                                                 ");
+		mvprintw(1,0,"                     PREDICT Real-Time Satellite Tracking                        ");
+
+		namelength=strlen(sat[x].name);
+		spaces=22-namelength;
+
+		mvprintw(2,0,"                                                                                 ");
+
+		mvprintw(2,spaces,"Tracking: %s",sat[x].name);
+
+		mvprintw(3,0,"                                                                                 ");
+
+		attrset(COLOR_PAIR(4)|A_BOLD);
+
+		mvprintw(4,0,"                                                                                 ");
+
+		mvprintw(5+tshift,1,"Satellite     Direction     Velocity     Footprint    Altitude     Slant Range");
+		mvprintw(6+tshift,1,"---------     ---------     --------     ---------    --------     -----------");
+		mvprintw(7+tshift,1,"        .            Az           mi            mi          mi              mi");
+		mvprintw(8+tshift,1,"        .            El           km            km          km              km");
+		mvprintw(16+bshift,1,"Eclipse Depth   Orbital Phase   Orbital Model   Squint Angle      AutoTracking");
+		mvprintw(17+bshift,1,"-------------   -------------   -------------   ------------      ------------");
+
+		if (comsat)
+		{
+			mvprintw(12,1,"Uplink   :");
+			mvprintw(13,1,"Downlink :");
+			mvprintw(14,1,"Delay    :");
+			mvprintw(14,55,"Echo      :");
+			mvprintw(13,29,"RX:");
+			mvprintw(13,55,"Path loss :");
+			mvprintw(12,29,"TX:");
+			mvprintw(12,55,"Path loss :");
+		}
+
 		attrset(COLOR_PAIR(5)|A_BOLD);
 		daynum=CurrentDaynum();
 
@@ -5023,10 +5099,13 @@ char speak;
 		mvprintw(7+tshift,29,"%0.f ",(3600.0*sat_vel)*km2mi);
 		mvprintw(8+tshift,29,"%0.f ",3600.0*sat_vel);
 
-		mvprintw(18+bshift,3,"%+6.2f%c  ",eclipse_depth/deg2rad,176);
+		mvprintw(18+bshift,3,"%+6.2f",eclipse_depth/deg2rad);
+		addch(ACS_DEGREE);
+		addstr("  ");
 		mvprintw(18+bshift,20,"%5.1f",256.0*(phase/twopi));
 		mvprintw(18+bshift,37,"%s",ephem);
 
+		/*
 		if (sat_sun_status)
 		{
 			if (sun_ele<=-12.0 && sat_ele>=0.0)
@@ -5035,6 +5114,22 @@ char speak;
 				visibility_array[indx]='D';
 		}
 
+		else
+			visibility_array[indx]='N';
+
+		visibility=visibility_array[indx];
+		*/
+
+		if (sat_sun_status)
+		{
+			visibility_array[indx]='D';
+
+			if (sat_ele>=0.0)
+			{
+				if ((sun_ele<=-12.0) || (sun_ele<=-8.0 && sat[indx].catnum==25544))	
+					visibility_array[indx]='V';
+			}
+		}
 		else
 			visibility_array[indx]='N';
 
@@ -5172,7 +5267,8 @@ char speak;
 					if (sat_range_rate>0.0)
 						approaching='-';
 
-					sprintf(command,"%svocalizer/vocalizer %.0f %.0f %c %c &",predictpath,sat_azi,sat_ele,approaching,visibility);
+					sprintf(command,"%svocalizer/vocalizer %d %d %c %c &",predictpath,iaz,iel,approaching,visibility);
+
 					system(command);
   					oldtime=CurrentDaynum();
 					old_visibility=visibility;
@@ -5257,28 +5353,29 @@ char speak;
 		mvprintw(22,65,"%-7.2fAz",moon_az);
 		mvprintw(23,64,"%+-6.2f  El",moon_el);
 
+
 		if (geostationary==1 && sat_ele>=0.0)
 		{
-			mvprintw(22,22,"Satellite orbit is geostationary");
+			sprintf(alstr,"Satellite orbit is geostationary");
 			aoslos=-3651.0;
 		}
 
 		if (geostationary==1 && sat_ele<0.0)
 		{
-			mvprintw(22,22,"This satellite never reaches AOS");
+			sprintf(alstr,"This satellite never reaches AOS");
 			aoslos=-3651.0;
 		}
 
 		if (aoshappens==0 || decayed==1)
 		{
-			mvprintw(22,22,"This satellite never reaches AOS");
+			sprintf(alstr,"This satellite never reaches AOS");
 			aoslos=-3651.0;
 		}
 
 		if (sat_ele>=0.0 && geostationary==0 && decayed==0 && daynum>lostime)
 		{
 			lostime=FindLOS2();
-			mvprintw(22,22,"LOS at: %s UTC  ",Daynum2String(lostime));
+			sprintf(alstr,"LOS at: %s UTC  ",Daynum2String(lostime));
 			aoslos=lostime;
 		}
 
@@ -5286,7 +5383,7 @@ char speak;
 		{
 			daynum+=0.003;  /* Move ahead slightly... */
 			nextaos=FindAOS();
-			mvprintw(22,22,"Next AOS: %s UTC",Daynum2String(nextaos));
+			sprintf(alstr,"Next AOS: %s UTC",Daynum2String(nextaos));
 			aoslos=nextaos;
 
 			if (oldtime!=0.0 && speak=='T' && soundcard)
@@ -5298,7 +5395,11 @@ char speak;
 			}
 		}
 
-		/* This is where the variables for the socket server are updated. */
+		/* Display the next AOS, LOS, etc. */
+
+		mvprintw(22,22,alstr);
+
+		/* Update the variables for the socket server. */
 
 		if (socket_flag)
 		{
@@ -5328,7 +5429,13 @@ char speak;
 
 		/* Get input from keyboard */
 
-		ans=tolower(getch());
+		do
+		{
+			ans=getch();
+
+		} while (ans>128);
+
+		ans=tolower(ans);
 
 		/* We can force PREDICT to speak by pressing 'T' */
 
@@ -5425,6 +5532,9 @@ char speak;
 
 	cbreak();
 	sprintf(tracking_mode, "NONE\n%c",0);
+
+	if (android && awake)
+		system("/data/data/com.termux/files/usr/bin/termux-wake-unlock");
 }
 
 void MultiTrack()
@@ -5435,14 +5545,18 @@ void MultiTrack()
 	   for the Sun and Moon are also displayed. */
 
 	int		x, y, z, ans;
-
 	unsigned char	satindex[24], inrange[24], sunstat=0, ok2predict[24];
-
+	char		alstr[3][80];
 	double		aos[24], aos2[24], temptime,
 			nextcalctime=0.0, los[24], aoslos[24];
 
 	if (xterm)
 		fprintf(stderr,"\033]0;PREDICT: Multi-Satellite Tracking Mode\007");
+
+	/* Keep the Android OS awake if we're providing real-time data to clients */
+
+	if (android && socket_flag)
+		system("/data/data/com.termux/files/usr/bin/termux-wake-lock");
 
 	curs_set(0);
 	attrset(COLOR_PAIR(5)|A_BOLD);
@@ -5506,6 +5620,7 @@ void MultiTrack()
 					inrange[indx]=0;
 				}
 
+				/*
 				if (sat_sun_status)
 				{
 					if (sun_ele<=-12.0 && sat_ele>=0.0)
@@ -5514,6 +5629,20 @@ void MultiTrack()
 						sunstat='D';
 				}
 
+				else
+					sunstat='N';
+				*/
+
+				if (sat_sun_status)
+				{
+					sunstat='D';
+
+					if (sat_ele>=0.0)
+					{
+						if ((sun_ele<=-12.0) || (sun_ele<=-8.0 && sat[indx].catnum==25544))
+							sunstat='V';
+					}
+				}
 				else
 					sunstat='N';
 
@@ -5639,18 +5768,13 @@ void MultiTrack()
 						satindex[y+1]=x;
 					}
 
-			/* Display list of upcoming passes */
-
-			attrset(COLOR_PAIR(4)|A_BOLD);
-			mvprintw(19,31,"Upcoming Passes");
-			mvprintw(20,31,"---------------");
-			attrset(COLOR_PAIR(3)|A_BOLD);
+			/* Generate a list of upcoming passes */
 
 			for (x=0, y=0, z=-1; x<21 && y!=3; x++)
 			{
 				if (ok2predict[satindex[x]] && aos2[x]!=0.0)
 				{
-					mvprintw(y+21,19,"%10s on %s UTC",Abbreviate(sat[(int)satindex[x]].name,9),Daynum2String(aos2[x]));
+					sprintf(alstr[y],"%10s on %s UTC",Abbreviate(sat[(int)satindex[x]].name,9),Daynum2String(aos2[x]));
 
 					if (z==-1)
 						z=x;
@@ -5662,9 +5786,26 @@ void MultiTrack()
 				nextcalctime=aos2[z];
 		}
 
+		/* Display the list of upcoming passes */
+
+		attrset(COLOR_PAIR(4)|A_BOLD);
+		mvprintw(19,31,"Upcoming Passes");
+		mvprintw(20,31,"---------------");
+		attrset(COLOR_PAIR(3)|A_BOLD);
+
+		for (y=0; y<3; y++)
+			 mvprintw(y+21,19,alstr[y]);
+
 		refresh();
 		halfdelay(2);  /* Increase if CPU load is too high */
-		ans=tolower(getch());
+
+		do
+		{
+			ans=getch();
+
+		} while (ans>128);
+
+		ans=tolower(ans);
 
 		/* If we receive a RELOAD_TLE command through the
 		   socket connection, or an 'r' through the keyboard,
@@ -5681,6 +5822,9 @@ void MultiTrack()
 
 	cbreak();
 	sprintf(tracking_mode, "NONE\n%c",0);
+
+	if (android && socket_flag)
+		system("/data/data/com.termux/files/usr/bin/termux-wake-unlock");
 }
 
 void Illumination()
@@ -5732,8 +5876,16 @@ void Illumination()
 
 		nodelay(stdscr,TRUE);
 
-		if (getch()==27)
+		do
+		{
+			breakout=getch();
+
+		} while (breakout>128);
+
+		if (breakout==27)
 			breakout=1;
+		else
+			breakout=0;
 
 		nodelay(stdscr,FALSE);
 
@@ -5763,8 +5915,16 @@ void Illumination()
 
 		nodelay(stdscr,TRUE);
 
-		if (getch()==27)
+		do
+		{
+			breakout=getch();
+
+		} while (breakout>128);
+
+		if (breakout==27)
 			breakout=1;
+		else
+			breakout=0;
 
 		nodelay(stdscr,FALSE);
 
@@ -5821,10 +5981,10 @@ void ProgramInfo()
 	Banner();
 	attrset(COLOR_PAIR(3)|A_BOLD);
 
-	printw("\n\n\n\n\n\t\tPREDICT version : %s\n",version);
-	printw("\t\tQTH file loaded : %s\n",qthfile);
-	printw("\t\tTLE file loaded : %s\n",tlefile);
-	printw("\t\tDatabase file   : ");
+	printw("\n\n\n\n\n\tPREDICT version : %s\n",version);
+	printw("\tQTH file loaded : %s\n",qthfile);
+	printw("\tTLE file loaded : %s\n",tlefile);
+	printw("\tDatabase file   : ");
 
 	if (database)
 		printw("Loaded\n");
@@ -5833,7 +5993,7 @@ void ProgramInfo()
 
 	if (antfd!=-1)
 	{
-		printw("\t\tAutoTracking    : Sending data to %s",serial_port);
+		printw("\tAutoTracking    : Sending data to %s",serial_port);
 
 		if (once_per_second)
 			printw(" every second");
@@ -5842,16 +6002,16 @@ void ProgramInfo()
 	}
 
 	else
-		printw("\t\tAutoTracking    : Not enabled\n");
+		printw("\tAutoTracking    : Not enabled\n");
 
-	printw("\t\tRunning Mode    : ");
+	printw("\tRunning Mode    : ");
 
 	if (socket_flag)
 		printw("Network server on port \"%s\"\n",netport);
 	else
 		printw("Standalone\n");
 
-	printw("\t\tVocalizer       : ");
+	printw("\tVocalizer       : ");
 
 	if (soundcard)
 		printw("Soundcard present");
@@ -6228,6 +6388,23 @@ char *string, *outputfile;
 	return 0;
 }
 
+void OScheck()
+{
+	/* Check to see if termux-wake-lock is available */
+	/* and set the global android flag accordingly. */
+
+	FILE *test=NULL;
+
+	test=fopen("/data/data/com.termux/files/usr/bin/termux-wake-lock", "r");
+
+	if (test!=NULL)
+	{
+		android=1;
+		fclose(test);
+	}
+	else
+		android=0;
+}
 
 int main(argc,argv)
 char argc, *argv[];
@@ -6514,6 +6691,8 @@ char argc, *argv[];
 		/* We're in interactive mode.  Prepare the screen. */
 		/* Are we running under an xterm or equivalent? */
 
+		OScheck();
+
 		env=getenv("TERM");
 
 		if (env!=NULL && strncmp(env,"xterm",5)==0)
@@ -6528,6 +6707,9 @@ char argc, *argv[];
 		cbreak();
 		noecho();
 		scrollok(stdscr,TRUE);
+		/* ESCDELAY=50; */
+		set_escdelay(50);	/* Reduce [ESC] response to 50 ms */
+		keypad(stdscr, TRUE);	/* Prevents function key mayhem */
 		curs_set(0);
 
 		init_pair(1,COLOR_WHITE,COLOR_BLACK);
@@ -6537,6 +6719,9 @@ char argc, *argv[];
 		init_pair(5,COLOR_WHITE,COLOR_RED);
 		init_pair(6,COLOR_RED,COLOR_WHITE);
 		init_pair(7,COLOR_CYAN,COLOR_RED);
+
+		if (android)
+			init_color(COLOR_BLUE, 0, 0, 500);  /* Darken the blue background */
 
 		if (x<3)
 		{
@@ -6609,8 +6794,12 @@ char argc, *argv[];
 		MainMenu();
 
 		do
-		{	
-			key=getch();
+		{
+			do
+			{
+				key=getch();
+
+			} while (key>128);
 
 			if (key!='T')
 				key=tolower(key);
